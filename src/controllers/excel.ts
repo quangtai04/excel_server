@@ -226,26 +226,40 @@ async function funcConvertData(
   return new Promise(async (resolve, reject) => {
     const [name_gv, ca_hoc, mon, tong1, tong2, tong3] =
       data_tkb[index]._rawData;
-    const ms_gv = map_data_gv.get(name_gv)?.ms_gv ?? "";
-    const name_gv_vnedu = map_data_gv.get(name_gv)?.gv_vnedu ?? "";
-    if (API.count_api > API.MAX_API) {
-      API.count_api = 0;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-    API.count_api++;
-    await sheet_vnedu.addRow({
-      ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
-      ["Họ tên / Tài khoản"]:
-        name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
-      ["Môn"]: mon,
-      ["Các lớp dạy kỳ 1"]: tong1,
-      ["Các lớp dạy kỳ 2"]: "",
-    });
-    if (name_gv !== teacher_current?.name_gv) {
-      teacher_current = {
-        ms_gv: map_data_gv.get(name_gv)?.ms_gv ?? "",
-        name_gv: name_gv,
-      };
+    if (ca_hoc !== undefined && mon !== undefined) {
+      const ms_gv = map_data_gv.get(name_gv)?.ms_gv ?? "";
+      const name_gv_vnedu =
+        map_data_gv.get(name_gv)?.gv_vnedu ??
+        (map_data_gv.get(name_gv)?.ms_gv ? "" : "<NO USER>");
+      API.count_api++;
+      try {
+        await sheet_vnedu.addRow({
+          ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
+          ["Họ tên / Tài khoản"]:
+            name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
+          ["Môn"]: mon,
+          ["Các lớp dạy kỳ 1"]: tong1,
+          ["Các lớp dạy kỳ 2"]: "",
+        });
+      } catch (err) {
+        console.log("ERROR API");
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        console.log("RETRY API");
+        await sheet_vnedu.addRow({
+          ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
+          ["Họ tên / Tài khoản"]:
+            name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
+          ["Môn"]: mon,
+          ["Các lớp dạy kỳ 1"]: tong1,
+          ["Các lớp dạy kỳ 2"]: "",
+        });
+      }
+      if (name_gv !== teacher_current?.name_gv) {
+        teacher_current = {
+          ms_gv: map_data_gv.get(name_gv)?.ms_gv ?? "",
+          name_gv: name_gv,
+        };
+      }
     }
     return funcConvertData(
       index + 1,
