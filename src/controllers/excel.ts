@@ -228,9 +228,7 @@ async function funcConvertData(
       data_tkb[index]._rawData;
     if (ca_hoc !== undefined && mon !== undefined) {
       const ms_gv = map_data_gv.get(name_gv)?.ms_gv ?? "";
-      const name_gv_vnedu =
-        map_data_gv.get(name_gv)?.gv_vnedu ??
-        (map_data_gv.get(name_gv)?.ms_gv ? "" : "<NO USER>");
+      const name_gv_vnedu = map_data_gv.get(name_gv)?.gv_vnedu ?? "";
       API.count_api++;
       try {
         await sheet_vnedu.addRow({
