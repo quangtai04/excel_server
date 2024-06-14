@@ -33,7 +33,7 @@ app.use(express.static("public"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 // Express configuration
-app.set("port", 3011);
+app.set("port", process.env.PORT || 3000);
 logger.token("id", function getId(req: any) {
   return req.id;
 });
