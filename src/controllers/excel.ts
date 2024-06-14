@@ -16,10 +16,6 @@ const serviceAccountAuth = new JWT({
     "https://www.googleapis.com/auth/drive.file",
   ],
 });
-const API = {
-  count_api: 0,
-  MAX_API: 50,
-};
 type MAP_DATA_GV = Map<
   string,
   {
@@ -35,6 +31,34 @@ type MAP_DATA_MH = Map<
     mh_tkb: string;
   }
 >;
+
+async function addRow(sheet_data, data): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await sheet_data.addRow(data);
+      resolve();
+    } catch (err) {
+      console.log("Try again");
+      // await 4000ms
+      setTimeout(() => {
+        addRow(sheet_data, data).then(() => {
+          resolve();
+        });
+      }, 4000);
+    }
+  });
+}
+
+function formatClass(str: string): string {
+  let result = (str as any).replaceAll("  ", " ");
+  while (result.includes("(") && result.length > 0) {
+    const index_start = result.indexOf("(");
+    const index_end =
+      result.indexOf(")") > -1 ? result.indexOf(")") : index_start + 1;
+    result = result.slice(0, index_start) + result.slice(index_end + 1);
+  }
+  return result;
+}
 
 const isSame = (a: string, b: string): { check: boolean; percent: number } => {
   let check = false;
@@ -69,6 +93,7 @@ const isSame = (a: string, b: string): { check: boolean; percent: number } => {
     percent: percent,
   };
 };
+
 const isSameSubject = (
   a: string,
   b: string
@@ -156,26 +181,16 @@ function funcSortData(
         data_add = [id_vnedu, name_vnedu, name_tkb, data_check?.percent];
       }
     }
-    if (API.count_api > API.MAX_API) {
-      API.count_api = 0;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-    API.count_api++;
-    sheet_data
-      .addRow({
-        [`STT_${type}_VNEDU`]: id_vnedu,
-        [`${type}_VNEDU`]: name_vnedu,
-        [`${type}_TKB`]: data_add?.[2] ?? "",
-        [`PERCENT`]: data_add?.[3] ?? "",
-        ...(type === "GV" ? { MA_SO_GV: ms_gv } : {}),
-      })
-      .then(() => {
-        funcSortData(index + 1, sheet_data, data_vnedu, data_tkb, type).then(
-          () => {
-            resolve();
-          }
-        );
-      });
+    await addRow(sheet_data, {
+      [`STT_${type}_VNEDU`]: id_vnedu,
+      [`${type}_VNEDU`]: name_vnedu,
+      [`${type}_TKB`]: data_add?.[2] ?? "",
+      [`PERCENT`]: data_add?.[3] ?? "",
+      ...(type === "GV" ? { MA_SO_GV: ms_gv } : {}),
+    });
+    funcSortData(index + 1, sheet_data, data_vnedu, data_tkb, type).then(() => {
+      resolve();
+    });
   });
 }
 export const sortData = async (req, res) => {
@@ -203,7 +218,6 @@ export const sortData = async (req, res) => {
     // get data tkb
     const data_tkb = await sheet_tkb.getRows();
     // sort data
-    API.count_api = 0;
     await funcSortData(stt_start ?? 0, sheet_data, data_vnedu, data_tkb, type);
     return handleSuccess(res, {}, "Thành công");
   } catch (err) {
@@ -229,29 +243,15 @@ async function funcConvertData(
     if (ca_hoc !== undefined && mon !== undefined) {
       const ms_gv = map_data_gv.get(name_gv)?.ms_gv ?? "";
       const name_gv_vnedu = map_data_gv.get(name_gv)?.gv_vnedu ?? "";
-      API.count_api++;
-      try {
-        await sheet_vnedu.addRow({
-          ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
-          ["Họ tên / Tài khoản"]:
-            name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
-          ["Môn"]: mon,
-          ["Các lớp dạy kỳ 1"]: tong1,
-          ["Các lớp dạy kỳ 2"]: "",
-        });
-      } catch (err) {
-        console.log("ERROR API");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        console.log("RETRY API");
-        await sheet_vnedu.addRow({
-          ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
-          ["Họ tên / Tài khoản"]:
-            name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
-          ["Môn"]: mon,
-          ["Các lớp dạy kỳ 1"]: tong1,
-          ["Các lớp dạy kỳ 2"]: "",
-        });
-      }
+      await addRow(sheet_vnedu, {
+        ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
+        ["Họ tên / Tài khoản"]:
+          name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
+        ["Môn"]: mon,
+        ["Các lớp dạy kỳ 1"]: formatClass(tong1),
+        ["Các lớp dạy kỳ 2"]: "",
+      });
+
       if (name_gv !== teacher_current?.name_gv) {
         teacher_current = {
           ms_gv: map_data_gv.get(name_gv)?.ms_gv ?? "",
@@ -344,7 +344,6 @@ export const createExcelVnedu = async (req, res) => {
     });
     const data_tkb = await sheet_tkb.getRows();
     await funcConvertData(0, data_tkb, sheet_vnedu, map_data_gv, map_data_mh);
-
     return handleSuccess(res, {}, "Thành công");
   } catch (err) {
     return handleError(res, "Lỗi không xác định", err);
