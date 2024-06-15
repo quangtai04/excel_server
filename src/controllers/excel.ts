@@ -183,7 +183,7 @@ function funcSortData(
     }
     await addRow(sheet_data, {
       [`STT_${type}_VNEDU`]: id_vnedu,
-      [`${type}_VNEDU`]: name_vnedu,
+      [`${type}_VNEDU`]: value,
       [`${type}_TKB`]: data_add?.[2] ?? "",
       [`PERCENT`]: data_add?.[3] ?? "",
       ...(type === "GV" ? { MA_SO_GV: ms_gv } : {}),
