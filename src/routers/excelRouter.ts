@@ -4,6 +4,6 @@ const router = express.Router();
 
 router
   .post("/createExcelVnedu", excelController.createExcelVnedu)
-  .post("/sortData", excelController.sortData);
+  .post("/renderFileData", excelController.renderFileData);
 
 export default router;
