@@ -174,13 +174,7 @@ export const createExcelVnedu = async (req, res) => {
   ) {
     return handleError(res, "File không tồn tại");
   }
-  // await xlsxParser.convertTKBToVNEDU(
-  //   getPath(file_name_tkb),
-  //   getPath(file_name_data),
-  //   getPath(file_name_result),
-  //   isHK2
-  // );
-  await xlsxParser.convertTKBToVNEDUExcelJs(
+  await xlsxParser.convertTKBToVNEDU(
     getPath(file_name_tkb),
     getPath(file_name_data),
     getPath(file_name_result),
@@ -190,179 +184,12 @@ export const createExcelVnedu = async (req, res) => {
   await fs.unlinkSync(getPath(file_name_data));
   await upload_file(
     folderId,
-    file_name_result,
+    "vnedu_result.xlsx",
     getPath(file_name_result),
     true
   );
   return handleSuccess(res, {}, "Thành công");
 };
-
-// type MAP_DATA_GV = Map<
-//   string,
-//   {
-//     ms_gv: string;
-//     gv_vnedu: string;
-//     gv_tkb: string;
-//   }
-// >;
-// type MAP_DATA_MH = Map<
-//   string,
-//   {
-//     mh_vnedu: string;
-//     mh_tkb: string;
-//   }
-// >;
-
-// async function addRow(sheet_data, data): Promise<void> {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       await sheet_data.addRow(data);
-//       resolve();
-//     } catch (err) {
-//       console.log("Try again");
-//       // await 4000ms
-//       setTimeout(() => {
-//         addRow(sheet_data, data).then(() => {
-//           resolve();
-//         });
-//       }, 4000);
-//     }
-//   });
-// }
-
-// function formatClass(str: string): string {
-//   let result = (str as any).replaceAll("  ", " ");
-//   while (result.includes("(") && result.length > 0) {
-//     const index_start = result.indexOf("(");
-//     const index_end =
-//       result.indexOf(")") > -1 ? result.indexOf(")") : index_start + 1;
-//     result = result.slice(0, index_start) + result.slice(index_end + 1);
-//   }
-//   return result;
-// }
-
-// async function funcConvertData(
-//   index: number,
-//   data_tkb: any[],
-//   sheet_vnedu: any,
-//   map_data_gv: MAP_DATA_GV,
-//   map_data_mh: MAP_DATA_MH,
-//   teacher_current?: {
-//     ms_gv: string;
-//     name_gv: string;
-//   }
-// ): Promise<void> {
-//   if (index >= data_tkb.length) return Promise.resolve();
-//   return new Promise(async (resolve, reject) => {
-//     const [name_gv, ca_hoc, mon, tong1, tong2, tong3] =
-//       data_tkb[index]._rawData;
-//     const ms_gv = map_data_gv.get(name_gv)?.ms_gv ?? "";
-//     const name_gv_vnedu = map_data_gv.get(name_gv)?.gv_vnedu ?? "";
-//     await addRow(sheet_vnedu, {
-//       ["Mã số GV"]: ms_gv !== teacher_current?.ms_gv ? ms_gv : "",
-//       ["Họ tên / Tài khoản"]:
-//         name_gv_vnedu !== teacher_current?.name_gv ? name_gv_vnedu : "",
-//       ["Môn"]: mon,
-//       ["Các lớp dạy kỳ 1"]: formatClass(tong1),
-//       ["Các lớp dạy kỳ 2"]: "",
-//     });
-
-//     if (name_gv !== teacher_current?.name_gv) {
-//       teacher_current = {
-//         ms_gv: map_data_gv.get(name_gv)?.ms_gv ?? "",
-//         name_gv: name_gv,
-//       };
-//     }
-//     return funcConvertData(
-//       index + 1,
-//       data_tkb,
-//       sheet_vnedu,
-//       map_data_gv,
-//       map_data_mh,
-//       teacher_current
-//     ).then(() => {
-//       resolve();
-//     });
-//   });
-// }
-
-// export const createExcelVnedu = async (req, res) => {
-//   const VNEDU_TEMPLETE = "1x6gz9PpEdF8R6pSmzsOHscOfMj3j1iLj-mHNlyQCEjo";
-//   const { sheet_id_vnedu, sheet_id_tkb, sheet_id_data } = req.body;
-//   try {
-//     const vnedu_templete = new GoogleSpreadsheet(
-//       VNEDU_TEMPLETE,
-//       serviceAccountAuth
-//     );
-//     const doc_tkb = new GoogleSpreadsheet(sheet_id_tkb, serviceAccountAuth);
-//     const doc_vnedu = new GoogleSpreadsheet(sheet_id_vnedu, serviceAccountAuth);
-//     const doc_data = new GoogleSpreadsheet(sheet_id_data, serviceAccountAuth);
-//     await vnedu_templete.loadInfo();
-//     await doc_tkb.loadInfo();
-//     await doc_data.loadInfo();
-
-//     let sheet_vnedu_temp, sheet_data_gv, sheet_data_mh, sheet_vnedu, sheet_tkb;
-//     sheet_vnedu_temp = vnedu_templete.sheetsByIndex[0];
-//     for (let i = 0; i < doc_data.sheetCount; i++) {
-//       switch (doc_data.sheetsByIndex[i]?.title?.toUpperCase()) {
-//         case `DATA_GV`:
-//           sheet_data_gv = doc_data.sheetsByIndex[i];
-//           break;
-//         case `DATA_MH`:
-//           sheet_data_mh = doc_data.sheetsByIndex[i];
-//           break;
-//       }
-//     }
-
-//     await sheet_vnedu_temp.copyToSpreadsheet(doc_vnedu.spreadsheetId);
-//     await doc_vnedu.loadInfo();
-//     sheet_vnedu = doc_vnedu.sheetsByIndex[doc_vnedu.sheetCount - 1];
-//     sheet_vnedu.setHeaderRow(
-//       [
-//         "Mã số GV",
-//         "Họ tên / Tài khoản",
-//         "Môn",
-//         "Các lớp dạy kỳ 1",
-//         "Các lớp dạy kỳ 2",
-//       ],
-//       11
-//     );
-
-//     for (let i = 0; i < doc_tkb.sheetCount; i++) {
-//       await doc_tkb.sheetsByIndex[i].updateProperties({
-//         title: `tbk_${i}`,
-//       });
-//     }
-//     sheet_tkb = doc_tkb.sheetsByIndex[0];
-//     await sheet_tkb.setHeaderRow(
-//       ["Giáo viên", "Ca học	Môn", "Dạy cho lớp", "Tổng1", "Tổng2", "Tổng3"],
-//       5
-//     );
-
-//     const data_gv = await sheet_data_gv.getRows();
-//     const data_mh = await sheet_data_mh.getRows();
-//     const map_data_gv: MAP_DATA_GV = new Map();
-//     const map_data_mh: MAP_DATA_MH = new Map();
-//     data_gv.forEach((item) => {
-//       map_data_gv.set(item.get("GV_TKB"), {
-//         ms_gv: item.get("MA_SO_GV"),
-//         gv_vnedu: item.get("GV_VNEDU"),
-//         gv_tkb: item.get("GV_TKB"),
-//       });
-//     });
-//     data_mh.forEach((item) => {
-//       map_data_mh.set(item.get("MH_TKB"), {
-//         mh_vnedu: item.get("MH_VNEDU"),
-//         mh_tkb: item.get("MH_TKB"),
-//       });
-//     });
-//     const data_tkb = await sheet_tkb.getRows();
-//     await funcConvertData(0, data_tkb, sheet_vnedu, map_data_gv, map_data_mh);
-//     return handleSuccess(res, {}, "Thành công");
-//   } catch (err) {
-//     return handleError(res, "Lỗi không xác định", err);
-//   }
-// };
 
 export const excelController = {
   createExcelVnedu,

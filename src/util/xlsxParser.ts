@@ -155,98 +155,7 @@ async function renderData(
   return null;
 }
 
-const convertTKBToVNEDU = (
-  path_tkb: string,
-  path_data: string,
-  path_result: string,
-  is_hk2?: boolean
-) => {
-  const tkb_xlsx = XLSX.readFile(path_tkb);
-  const data_xlsx = XLSX.readFile(path_data);
-  const result_xlsx = XLSX.readFile(path_result);
-  let sheet_data_gv, sheet_data_mh;
-  for (let i = 0; i < data_xlsx.SheetNames.length; i++) {
-    switch (data_xlsx.SheetNames[i]) {
-      case "DATA_GV":
-        sheet_data_gv = data_xlsx.Sheets[data_xlsx.SheetNames[i]];
-        break;
-      case "DATA_MH":
-        sheet_data_mh = data_xlsx.Sheets[data_xlsx.SheetNames[i]];
-        break;
-    }
-  }
-  const sheet_result = result_xlsx.Sheets[result_xlsx.SheetNames[0]];
-  const sheet_tkb = tkb_xlsx.Sheets[tkb_xlsx.SheetNames[0]];
-  const data_gv = XLSX.utils.sheet_to_json(sheet_data_gv);
-  const data_mh = XLSX.utils.sheet_to_json(sheet_data_mh);
-  // create map data
-  const map_data_gv: MAP_DATA_GV = new Map();
-  const map_data_mh: MAP_DATA_MH = new Map();
-  data_gv.forEach((gv: DATA_GV) => {
-    map_data_gv.set(gv.GV_TKB, {
-      ms_gv: gv.MA_SO_GV,
-      gv_vnedu: gv.GV_VNEDU,
-      gv_tkb: gv.GV_TKB,
-    });
-  });
-  data_mh.forEach((mh: DATA_MH) => {
-    map_data_mh.set(mh.MH_TKB, {
-      mh_vnedu: mh.MH_VNEDU,
-      mh_tkb: mh.MH_TKB,
-    });
-  });
-  // get GV_TKB, MH_TKB
-  let row_start_tkb = 6,
-    row_start_vnedu = 12;
-  while (
-    sheet_tkb[`${char(0)}${row_start_tkb}`] ||
-    sheet_tkb[`${char(1)}${row_start_tkb}`] ||
-    sheet_tkb[`${char(2)}${row_start_tkb}`] ||
-    sheet_tkb[`${char(3)}${row_start_tkb}`]
-  ) {
-    const gv_tkb = sheet_tkb[`${char(0)}${row_start_tkb}`]?.v ?? "";
-    const mh_tkb = sheet_tkb[`${char(2)}${row_start_tkb}`]?.v ?? "";
-    const classes = sheet_tkb[`${char(3)}${row_start_tkb}`]?.v ?? "";
-    //
-    const ms_gv_vnedu = map_data_gv.has(gv_tkb)
-      ? map_data_gv.get(gv_tkb).ms_gv
-      : "";
-    const gv_vnedu = map_data_gv.has(gv_tkb)
-      ? map_data_gv.get(gv_tkb).gv_vnedu
-      : "";
-    const mh_vnedu = map_data_mh.has(mh_tkb)
-      ? map_data_mh.get(mh_tkb).mh_vnedu
-      : "";
-    // add row
-    sheet_result[`${char(0)}${row_start_vnedu}`] = {
-      t: "s",
-      v: ms_gv_vnedu,
-    };
-    sheet_result[`${char(1)}${row_start_vnedu}`] = {
-      t: "s",
-      v: gv_vnedu,
-    };
-    sheet_result[`${char(2)}${row_start_vnedu}`] = {
-      t: "s",
-      v: mh_vnedu,
-    };
-    if (!is_hk2)
-      sheet_result[`${char(3)}${row_start_vnedu}`] = {
-        t: "s",
-        v: formatClass(classes),
-      };
-    else
-      sheet_result[`${char(4)}${row_start_vnedu}`] = {
-        t: "s",
-        v: formatClass(classes),
-      };
-    row_start_tkb++;
-    row_start_vnedu++;
-  }
-  XLSX.writeFile(result_xlsx, path_result);
-};
-
-const convertTKBToVNEDUExcelJs = async (
+const convertTKBToVNEDU = async (
   path_tkb: string,
   path_data: string,
   path_result: string,
@@ -291,9 +200,9 @@ const convertTKBToVNEDUExcelJs = async (
   }
   let row_data_mh = 2;
   while (sheet_data_mh.getCell(`${char(0)}${row_data_mh}`)?.value) {
+    const mh_tkb = sheet_data_mh.getCell(`${char(1)}${row_data_mh}`)?.value;
     const mh_vnedu =
-      sheet_data_mh.getCell(`${char(1)}${row_data_mh}`)?.value ?? "";
-    const mh_tkb = sheet_data_mh.getCell(`${char(2)}${row_data_mh}`)?.value;
+      sheet_data_mh.getCell(`${char(2)}${row_data_mh}`)?.value ?? "";
     if (mh_tkb)
       map_data_mh.set(mh_tkb, {
         mh_vnedu: mh_vnedu,
@@ -327,7 +236,6 @@ const convertTKBToVNEDUExcelJs = async (
     const mh_vnedu = map_data_mh.has(mh_tkb)
       ? map_data_mh.get(mh_tkb).mh_vnedu
       : "";
-    if (mh_vnedu === "") console.log(mh_tkb);
     // add row
     sheet_result.getRow(row_start_vnedu).values = [
       ms_gv_vnedu !== teacher_current?.ms_gv ? ms_gv_vnedu : "",
@@ -336,6 +244,13 @@ const convertTKBToVNEDUExcelJs = async (
       is_hk2 ? "" : formatClass(classes),
       is_hk2 ? formatClass(classes) : "",
     ];
+    for (let j = 0; j < 5; j++) {
+      sheet_result.getCell(`${char(j)}${row_start_vnedu}`).font = {
+        name: "Times New Roman", // Đặt font family
+        size: 13, // Đặt kích thước font
+      };
+    }
+
     teacher_current = {
       ms_gv: ms_gv_vnedu,
       gv_vnedu: gv_vnedu,
@@ -350,7 +265,6 @@ const convertTKBToVNEDUExcelJs = async (
 export const xlsxParser = {
   renderData,
   convertTKBToVNEDU,
-  convertTKBToVNEDUExcelJs,
 };
 
 const isSame = (a: string, b: string): { check: boolean; percent: number } => {
