@@ -1,4 +1,5 @@
 const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 
 type MAP_DATA_GV = Map<
   string,
@@ -117,20 +118,20 @@ async function renderData(
       data_gv.push(data_add);
     }
   });
-  MH_VNEDU.forEach((mh) => {
+  MH_TKB.forEach((mh_tkb) => {
     let data_check = {
       check: false,
       percent: 0,
     };
     let data_add;
-    MH_TKB.forEach((mh_tkb) => {
+    MH_VNEDU.forEach((mh) => {
       const check = isSameSubject(mh, mh_tkb);
       if (check.check && check.percent > data_check.percent) {
         data_check = check;
         data_add = {
           STT: data_mh.length + 1,
-          MH_VNEDU: mh,
           MH_TKB: mh_tkb,
+          MH_VNEDU: mh,
           PERCENT: data_check.percent.toString(),
         };
       }
@@ -139,8 +140,8 @@ async function renderData(
     else {
       data_add = {
         STT: data_mh.length + 1,
-        MH_VNEDU: mh,
-        MH_TKB: "",
+        MH_TKB: mh_tkb,
+        MH_VNEDU: "",
         PERCENT: "",
       };
       data_mh.push(data_add);
@@ -245,9 +246,111 @@ const convertTKBToVNEDU = (
   XLSX.writeFile(result_xlsx, path_result);
 };
 
+const convertTKBToVNEDUExcelJs = async (
+  path_tkb: string,
+  path_data: string,
+  path_result: string,
+  is_hk2?: boolean
+) => {
+  const work_book_tkb = new ExcelJS.Workbook();
+  const work_book_data = new ExcelJS.Workbook();
+  const work_book_result = new ExcelJS.Workbook();
+  const tkb_xlsx = await work_book_tkb.xlsx.readFile(path_tkb);
+  const data_xlsx = await work_book_data.xlsx.readFile(path_data);
+  const result_xlsx = await work_book_result.xlsx.readFile(path_result);
+  let sheet_data_gv, sheet_data_mh;
+  data_xlsx.eachSheet((sheet) => {
+    switch (sheet.name) {
+      case "DATA_GV":
+        sheet_data_gv = sheet;
+        break;
+      case "DATA_MH":
+        sheet_data_mh = sheet;
+        break;
+    }
+  });
+  const sheet_result = result_xlsx.getWorksheet(1);
+  const sheet_tkb = tkb_xlsx.getWorksheet(1);
+  // create map data
+  const map_data_gv: MAP_DATA_GV = new Map();
+  const map_data_mh: MAP_DATA_MH = new Map();
+  let row_data_gv = 2;
+  while (sheet_data_gv.getCell(`${char(0)}${row_data_gv}`)?.value) {
+    const ms_gv_vnedu =
+      sheet_data_gv.getCell(`${char(1)}${row_data_gv}`)?.value ?? "";
+    const gv_vnedu =
+      sheet_data_gv.getCell(`${char(2)}${row_data_gv}`)?.value ?? "";
+    const gv_tkb = sheet_data_gv.getCell(`${char(3)}${row_data_gv}`)?.value;
+    if (gv_tkb)
+      map_data_gv.set(gv_tkb, {
+        ms_gv: ms_gv_vnedu,
+        gv_vnedu: gv_vnedu,
+        gv_tkb: gv_tkb,
+      });
+    row_data_gv++;
+  }
+  let row_data_mh = 2;
+  while (sheet_data_mh.getCell(`${char(0)}${row_data_mh}`)?.value) {
+    const mh_vnedu =
+      sheet_data_mh.getCell(`${char(1)}${row_data_mh}`)?.value ?? "";
+    const mh_tkb = sheet_data_mh.getCell(`${char(2)}${row_data_mh}`)?.value;
+    if (mh_tkb)
+      map_data_mh.set(mh_tkb, {
+        mh_vnedu: mh_vnedu,
+        mh_tkb: mh_tkb,
+      });
+    row_data_mh++;
+  }
+  // get GV_TKB, MH_TKB
+  let row_start_tkb = 6,
+    row_start_vnedu = 12,
+    teacher_current = {
+      ms_gv: undefined,
+      gv_vnedu: undefined,
+    };
+  while (
+    sheet_tkb.getCell(`${char(0)}${row_start_tkb}`)?.value ||
+    sheet_tkb.getCell(`${char(1)}${row_start_tkb}`)?.value ||
+    sheet_tkb.getCell(`${char(2)}${row_start_tkb}`)?.value ||
+    sheet_tkb.getCell(`${char(3)}${row_start_tkb}`)?.value
+  ) {
+    const gv_tkb = sheet_tkb.getCell(`${char(0)}${row_start_tkb}`).value ?? "";
+    const mh_tkb = sheet_tkb.getCell(`${char(2)}${row_start_tkb}`).value ?? "";
+    const classes = sheet_tkb.getCell(`${char(3)}${row_start_tkb}`).value ?? "";
+    //
+    const ms_gv_vnedu = map_data_gv.has(gv_tkb)
+      ? map_data_gv.get(gv_tkb).ms_gv
+      : "";
+    const gv_vnedu = map_data_gv.has(gv_tkb)
+      ? map_data_gv.get(gv_tkb).gv_vnedu
+      : "";
+    const mh_vnedu = map_data_mh.has(mh_tkb)
+      ? map_data_mh.get(mh_tkb).mh_vnedu
+      : "";
+    if (mh_vnedu === "") console.log(mh_tkb);
+    // add row
+    sheet_result.getRow(row_start_vnedu).values = [
+      ms_gv_vnedu !== teacher_current?.ms_gv ? ms_gv_vnedu : "",
+      gv_vnedu !== teacher_current?.gv_vnedu ? gv_vnedu : "",
+      mh_vnedu,
+      is_hk2 ? "" : formatClass(classes),
+      is_hk2 ? formatClass(classes) : "",
+    ];
+    teacher_current = {
+      ms_gv: ms_gv_vnedu,
+      gv_vnedu: gv_vnedu,
+    };
+    row_start_tkb++;
+    row_start_vnedu++;
+  }
+  await result_xlsx.xlsx.writeFile(path_result);
+  return;
+};
+
 export const xlsxParser = {
   renderData,
   convertTKBToVNEDU,
+  convertTKBToVNEDUExcelJs,
 };
 
 const isSame = (a: string, b: string): { check: boolean; percent: number } => {

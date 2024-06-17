@@ -32,8 +32,13 @@ const download_file = async (
   fileName: string
 ): Promise<any> => {
   const drive = google.drive({ version: "v3", auth: serviceAccountAuth });
+  if (!fs.existsSync(path.join(process.cwd(), "/public"))) {
+    await fs.mkdirSync(path.join(process.cwd(), "/public"), {
+      recursive: true,
+    });
+  }
   if (fs.existsSync(path.join(process.cwd(), "/public/excel"))) {
-    fs.mkdirSync(path.join(process.cwd(), "/public/excel"), {
+    await fs.mkdirSync(path.join(process.cwd(), "/public/excel"), {
       recursive: true,
     });
   }
@@ -127,17 +132,12 @@ export const renderFileData = async (req, res) => {
   );
   await fs.unlinkSync(getPath(file_name_vnedu));
   await fs.unlinkSync(getPath(file_name_tkb));
-  await upload_file(
-    folderId,
-    `data_${time}.xlsx`,
-    getPath(`data_${time}.xlsx`),
-    true
-  );
+  await upload_file(folderId, `data.xlsx`, getPath(`data_${time}.xlsx`), true);
   return handleSuccess(res, { files }, "Thành công");
 };
 
 export const createExcelVnedu = async (req, res) => {
-  const { folderId } = req.body;
+  const { folderId, isHK2 } = req.body;
   const drive = google.drive({ version: "v3", auth: serviceAccountAuth });
   const resDrive = await drive.files.list({
     q: `'${folderId}' in parents and trashed = false`,
@@ -174,11 +174,20 @@ export const createExcelVnedu = async (req, res) => {
   ) {
     return handleError(res, "File không tồn tại");
   }
-  await xlsxParser.convertTKBToVNEDU(
+  // await xlsxParser.convertTKBToVNEDU(
+  //   getPath(file_name_tkb),
+  //   getPath(file_name_data),
+  //   getPath(file_name_result),
+  //   isHK2
+  // );
+  await xlsxParser.convertTKBToVNEDUExcelJs(
     getPath(file_name_tkb),
     getPath(file_name_data),
-    getPath(file_name_result)
+    getPath(file_name_result),
+    isHK2
   );
+  await fs.unlinkSync(getPath(file_name_tkb));
+  await fs.unlinkSync(getPath(file_name_data));
   await upload_file(
     folderId,
     file_name_result,
